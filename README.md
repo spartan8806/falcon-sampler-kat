@@ -67,8 +67,9 @@ Bernoulli-with-probability-exp(−x) step) and compare the accept/reject result.
 vector means your `exp()` is outside 2⁻⁴⁰ in that direction.
 
 **Both error directions are covered.** Ten vectors trip an implementation that under-computes `exp`,
-ten trip one that over-computes. A set containing only one kind would silently pass an implementation
-whose error runs the other way — the same one-sided-test mistake this whole finding is about.
+ten trip one that over-computes. This is not hypothetical caution: the real defect in falcon-rust
+v0.1.3 errs *over* at `x = 0.05` and *under* at `x = 0.35`, in the same build. A set containing only
+one kind would have missed half of them — the same one-sided-test mistake this whole finding is about.
 
 ## Why these are `BerExp` vectors and not full `sampler_z` vectors
 
@@ -108,11 +109,17 @@ confirms the checking is capable of failing. See [TESTING.md](TESTING.md).
 
 - **Not spec conformance.** See the correction above. An implementation failing these is not
   violating the Falcon spec; it is falling below the premise the security proof rests on.
-- **Tested against one reference lineage.** Expected values come from PQClean falcon-512 `clean`.
-  Cross-checks against other independent implementations are welcome and are the obvious next step.
-- **The degradation model is synthetic.** "Coarse" is simulated by clearing (or rounding up) the low
-  bits of the reference result, which isolates precision as the only variable. A real coarse
-  polynomial differs in other ways too, and may err in a different direction at different `x`.
+- **Cross-checked against a second, independent lineage.** Expected values come from PQClean
+  falcon-512 `clean`, and all 20 also hold against **falcon-rust v0.3.0** (`FixedPoint128`, different
+  language, different arithmetic). Against **falcon-rust v0.1.3** — the actual implementation from
+  GHSA-25rm-9wvm-m38v — **10 of 20 catch the defect**, which is every one of the 10 parameter points,
+  since only the vector pointed in the implementation's error direction flips at each `x`. See
+  [cross-check/](cross-check/). More lineages would still be worth having.
+- **The degradation model in the test suite is synthetic**, though the vectors are not only checked
+  against it. "Coarse" is simulated by clearing or rounding up the low bits of the reference result,
+  which isolates precision as the only variable. The real defect in falcon-rust v0.1.3 is messier and
+  **errs in opposite directions at different `x`** — measured, not assumed, which is exactly why both
+  error directions are published. A one-sided set would have missed half of them.
 - **A passing result is not a proof of correctness.** These vectors detect precision below 2⁻⁴⁰ at
   the points they sample. They say nothing about the rest of your sampler.
 
