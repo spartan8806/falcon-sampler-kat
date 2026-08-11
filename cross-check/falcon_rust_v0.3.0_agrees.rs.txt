@@ -1,8 +1,17 @@
     /// CROSS-IMPLEMENTATION CHECK, injected by the falcon-sampler-kat project.
     ///
     /// The expected answers were produced by PQClean's reference `sign.c`/`fpr.c`, NOT by this
-    /// crate. If they hold here too, the vectors test the 2^-40 precision bar rather than
-    /// bit-identity with one lineage -- which is the whole claim the KAT set makes.
+    /// crate. If they hold here too, the vectors do not depend on PQClean's `fpr` software-float
+    /// REPRESENTATION: a different language and a different fixed-point container reach the same
+    /// answers.
+    ///
+    /// That is narrower than "the vectors test the precision bar rather than bit-identity", which
+    /// an earlier version of this comment claimed. This crate evaluates the SAME FACCT polynomial
+    /// as PQClean -- 13 byte-identical coefficients, same Horner recurrence -- and at all 10 points
+    /// reproduces PQClean's 64-bit `z` exactly, so agreement here is consistent with EITHER
+    /// hypothesis. The bar-versus-bit-identity question is settled by the positive-control arm of
+    /// tools/selftest.py instead: a build deliberately different from PQClean and comfortably
+    /// inside the bar still agrees 40/40. See cross-check/README.md.
     ///
     /// Each drawn value sits ~z>>40 from z, so the first byte that differs lands around index 4-5
     /// and the 7-byte window here is sufficient.

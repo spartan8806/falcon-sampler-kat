@@ -1,8 +1,9 @@
 {
   "format": "falcon-sampler-kat.berexp.v1",
   "generated_against": "PQClean falcon-512 clean (sign.c BerExp, fpr.c fpr_expm_p63)",
-  "precision_threshold": "2^-40 relative error in exp(), per Prest'17 / HPRR'19",
-  "note": "The Falcon specification stipulates no precision floor. These vectors test the premise the security proof requires, not a spec conformance requirement.",
+  "discrimination_window": "2^-40 relative error in exp() -- the window THESE VECTORS are built at (u_drawn sits z>>40 from z_reference). Not a figure from any paper.",
+  "derived_requirement": "HPRR'19 (eprint 2019/1411) sect. 5 derives ~2^-43 for Falcon; Prest'17 (eprint 2017/480) sect. 3.3 gives delta <= 2^-37 for lambda <= 256. 2^-43 is STRICTER than the window above, so an implementation between 2^-40 and 2^-43 passes these vectors while sitting under the derived requirement.",
+  "note": "The Falcon specification stipulates no precision floor. These vectors test the premise the security proof requires, not a spec conformance requirement. A pass means 'not catastrophically under-provisioned', NOT 'meets HPRR'19'.",
   "parameter_sets": {
     "Falcon-512": {
       "sigma_min": "1.277833697",

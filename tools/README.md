@@ -12,8 +12,10 @@ identifiably upstream rather than a copy that could drift.
 
 ## Build
 
-Three binaries: the reference, and two degraded builds that simulate a coarse `exp()` erring in each
-direction.
+Five binaries: the reference; two degraded builds (~2⁻³³) that simulate a coarse `exp()` erring in
+each direction; and two positive-control builds (~2⁻⁴⁵) that are coarse but still inside the bar.
+`selftest.py` requires all five and exits 1 without them — `bash build_and_selftest.sh` builds the
+set in one step.
 
 ```sh
 F=../../scratch_sweep/pqclean/crypto_sign/falcon-512/clean
@@ -51,9 +53,13 @@ does not match the construction is raised, never published.
 ## Verify them
 
 ```sh
-python3 verify_vectors.py       # reference vs ~2^-33
-python3 verify_vectors.py 26    # a milder degradation, ~2^-37
+python3 verify_vectors.py       # reference vs the degraded build on disk
 ```
+
+It takes no arguments. To check a different precision, rebuild the degraded harnesses at another
+`-DDEGRADE_BITS` and re-run: the script compares whichever binaries are present and **measures**
+the relative error they actually carry, so the figure it reports follows the build rather than a
+constant in the source.
 
 Exit 0 only if every vector produces the published answer on the reference **and** the opposite
 answer on the degradation that can exercise it. Accept-direction vectors are checked against the
