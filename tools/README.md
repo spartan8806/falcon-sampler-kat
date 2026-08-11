@@ -24,7 +24,16 @@ SRC="$F/fpr.c $F/common.c $F/rng.c $F/codec.c $F/fft.c $F/keygen.c $F/vrfy.c \
 gcc -O2                            -I$F -I$C -o kat_harness         kat_harness.c $SRC
 gcc -O2 -DDEGRADE_BITS=30          -I$F -I$C -o kat_harness_deg_down kat_harness.c $SRC
 gcc -O2 -DDEGRADE_BITS=30 -DDEGRADE_UP -I$F -I$C -o kat_harness_deg_up   kat_harness.c $SRC
+
+# and two builds that are COARSE BUT STILL INSIDE THE BAR (~2^-45), the positive control
+gcc -O2 -DDEGRADE_BITS=18              -I$F -I$C -o kat_harness_good_dn  kat_harness.c $SRC
+gcc -O2 -DDEGRADE_BITS=18 -DDEGRADE_UP -I$F -I$C -o kat_harness_good_up  kat_harness.c $SRC
 ```
+
+The last two matter more than they look. A two-armed test -- reference versus a 2^-33 build -- passes
+identically whether the vectors discriminate at 2^-40 or at ONE ULP, so it cannot tell "meets the bar"
+from "is bit-identical to PQClean". Only an implementation comfortably inside the bar separates those,
+and it must AGREE.
 
 `sign.c` is deliberately **absent** from `$SRC` — `kat_harness.c` `#include`s it, because `BerExp`
 is `static` and reaching the real one is the entire point. Compiling it separately as well would be a
