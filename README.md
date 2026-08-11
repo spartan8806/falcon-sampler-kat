@@ -96,7 +96,9 @@ Each vector is confirmed in **both** directions before publication:
 - the reference produces the published answer, and
 - a build whose `exp()` low bits are cleared to ~2⁻³³ produces the opposite answer.
 
-`tools/verify_vectors.py` re-checks all 20 and refuses to pass if any vector fails either half.
+`tools/verify_vectors.py` re-checks all 20 and refuses to pass if any vector fails either half,
+and `tools/selftest.py` checks the whole chain in one command -- including a tautology guard that
+confirms the checking is capable of failing. See [TESTING.md](TESTING.md).
 
 ## Honest limits
 
