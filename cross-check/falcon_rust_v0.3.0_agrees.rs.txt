@@ -1,0 +1,72 @@
+    /// CROSS-IMPLEMENTATION CHECK, injected by the falcon-sampler-kat project.
+    ///
+    /// The expected answers were produced by PQClean's reference `sign.c`/`fpr.c`, NOT by this
+    /// crate. If they hold here too, the vectors test the 2^-40 precision bar rather than
+    /// bit-identity with one lineage -- which is the whole claim the KAT set makes.
+    ///
+    /// Each drawn value sits ~z>>40 from z, so the first byte that differs lands around index 4-5
+    /// and the 7-byte window here is sufficient.
+    #[test]
+    fn falcon_sampler_kat_cross_check() {
+        let vectors: [(f64, f64, [u8; 7], bool); 20] = [
+        // Falcon-512  x=0.05  divergence at byte 5
+        (0.05f64, 0.7099076094444444f64, [0xac, 0xdf, 0x7a, 0x6b, 0x99, 0x4c, 0x3e], true),
+        // Falcon-512  x=0.05  divergence at byte 4
+        (0.05f64, 0.7099076094444444f64, [0xac, 0xdf, 0x7a, 0x6b, 0x9a, 0xa5, 0xfd], false),
+        // Falcon-512  x=0.2000001676183812  divergence at byte 5
+        (0.2000001676183812f64, 0.7099076094444444f64, [0x94, 0xcb, 0x09, 0x65, 0x94, 0x0a, 0xb9], true),
+        // Falcon-512  x=0.2000001676183812  divergence at byte 4
+        (0.2000001676183812f64, 0.7099076094444444f64, [0x94, 0xcb, 0x09, 0x65, 0x95, 0x34, 0x4f], false),
+        // Falcon-512  x=0.35  divergence at byte 4
+        (0.35f64, 0.7099076094444444f64, [0x80, 0x11, 0x43, 0xbe, 0x0d, 0xe7, 0x0f], true),
+        // Falcon-512  x=0.35  divergence at byte 5
+        (0.35f64, 0.7099076094444444f64, [0x80, 0x11, 0x43, 0xbe, 0x0e, 0xe7, 0x31], false),
+        // Falcon-512  x=0.5  divergence at byte 5
+        (0.5f64, 0.7099076094444444f64, [0x6e, 0x3a, 0x89, 0xec, 0x9b, 0x00, 0xcf], true),
+        // Falcon-512  x=0.5  divergence at byte 5
+        (0.5f64, 0.7099076094444444f64, [0x6e, 0x3a, 0x89, 0xec, 0x9b, 0xdd, 0x44], false),
+        // Falcon-512  x=0.65  divergence at byte 5
+        (0.65f64, 0.7099076094444444f64, [0x5e, 0xdf, 0xeb, 0xe0, 0xd5, 0x6f, 0xef], true),
+        // Falcon-512  x=0.65  divergence at byte 4
+        (0.65f64, 0.7099076094444444f64, [0x5e, 0xdf, 0xeb, 0xe0, 0xd6, 0x2d, 0xaf], false),
+        // Falcon-1024  x=0.05  divergence at byte 4
+        (0.05f64, 0.7212668522222222f64, [0xaf, 0xa3, 0x9c, 0x5d, 0xaa, 0x93, 0xfa], true),
+        // Falcon-1024  x=0.05  divergence at byte 5
+        (0.05f64, 0.7212668522222222f64, [0xaf, 0xa3, 0x9c, 0x5d, 0xab, 0xf3, 0x42], false),
+        // Falcon-1024  x=0.2000001676183812  divergence at byte 4
+        (0.2000001676183812f64, 0.7212668522222222f64, [0x97, 0x2c, 0x88, 0x2f, 0xea, 0xc1, 0x45], true),
+        // Falcon-1024  x=0.2000001676183812  divergence at byte 5
+        (0.2000001676183812f64, 0.7212668522222222f64, [0x97, 0x2c, 0x88, 0x2f, 0xeb, 0xef, 0x9e], false),
+        // Falcon-1024  x=0.35  divergence at byte 4
+        (0.35f64, 0.7212668522222222f64, [0x82, 0x1d, 0xdc, 0xb5, 0xf4, 0x92, 0x07], true),
+        // Falcon-1024  x=0.35  divergence at byte 5
+        (0.35f64, 0.7212668522222222f64, [0x82, 0x1d, 0xdc, 0xb5, 0xf5, 0x96, 0x43], false),
+        // Falcon-1024  x=0.5  divergence at byte 5
+        (0.5f64, 0.7212668522222222f64, [0x6f, 0xfe, 0x10, 0x65, 0x68, 0x23, 0xc4], true),
+        // Falcon-1024  x=0.5  divergence at byte 4
+        (0.5f64, 0.7212668522222222f64, [0x6f, 0xfe, 0x10, 0x65, 0x69, 0x03, 0xc1], false),
+        // Falcon-1024  x=0.65  divergence at byte 5
+        (0.65f64, 0.7212668522222222f64, [0x60, 0x64, 0x8d, 0x84, 0xf7, 0x94, 0x58], true),
+        // Falcon-1024  x=0.65  divergence at byte 4
+        (0.65f64, 0.7212668522222222f64, [0x60, 0x64, 0x8d, 0x84, 0xf8, 0x55, 0x21], false),
+        ];
+        let mut disagree = Vec::new();
+        for (i, (x, ccs, bytes, expect)) in vectors.iter().enumerate() {
+            let got = ber_exp(
+                FixedPoint128::from(*x),
+                FixedPoint128::from(*ccs),
+                *bytes,
+            );
+            if got != *expect {
+                disagree.push(format!("vector {}: x={} expected {} got {}", i, x, expect, got));
+            }
+        }
+        assert!(
+            disagree.is_empty(),
+            "{} of {} vectors disagree with the PQClean-derived answers:\n{}",
+            disagree.len(),
+            vectors.len(),
+            disagree.join("\n")
+        );
+        println!("all {} vectors agree with PQClean", vectors.len());
+    }
