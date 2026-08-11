@@ -48,15 +48,19 @@ answer a correctly-provisioned implementation must return:
 
 ```json
 {
-  "x": "0.20000016761838121",
-  "ccs": "0.70990760944444447",
-  "bytes": "9d31c1a6e0cb8adc",
-  "z_reference": "0x9d31c1a6e0cb8add",
+  "x": "0.05",
+  "ccs": "0.7099076094444444",
+  "bytes": "acdf7a6b994c3e32",
+  "z_reference": "0xacdf7a6b99f91dad",
+  "u_drawn": "0xacdf7a6b994c3e32",
   "reference_accepts": true,
   "discriminates_at": "2^-40",
   "flips_if": "exp() under-computes by more than 2^-40"
 }
 ```
+
+`u_drawn` sits exactly `z >> 40` below (or above) `z_reference` — that offset IS the 2⁻⁴⁰ window, and
+you can check any vector's placement with that one subtraction.
 
 Feed `x`, `ccs` and the byte stream to your `BerExp` (or whatever your implementation calls the
 Bernoulli-with-probability-exp(−x) step) and compare the accept/reject result. A disagreement on any

@@ -30,6 +30,13 @@ agreement.
 | **5** discrimination | all 20 flip against the degradation that can exercise them | a vector whose drawn value drifted outside the window and no longer tests anything |
 | **6** tautology guard | an inverted expected answer is rejected; a byte stream moved far outside the window does **not** discriminate | the suite passing because it cannot fail |
 
+**Stage 5b is why the two-armed version was not enough.** Reference-versus-2⁻³³ passes identically
+whether a vector discriminates at 2⁻⁴⁰ or at a single ULP — the harness is blind to the difference by
+construction. Only an implementation *inside* the bar tells them apart, by agreeing. Measured: a
+2⁻⁴⁵ build moves the computed value by ~2¹⁵ against a window of ~2²², about 155× inside, and agrees on
+40/40 checks. That also softens the "one reference lineage" limitation below, since any implementation
+within 2⁻⁴⁰ now provably agrees regardless of lineage.
+
 Stage 6 is the one worth arguing about. Stages 1–5 all passing means little on its own: a check that
 cannot fail proves nothing about what it claims to check. So the last stage inverts a published answer
 and confirms the reference disagrees, then moves a drawn value a long way out of the discrimination

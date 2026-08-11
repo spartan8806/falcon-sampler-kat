@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import math
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -22,6 +23,8 @@ from pathlib import Path
 REF = "./kat_harness"
 DEG_DOWN = "./kat_harness_deg_down"
 DEG_UP = "./kat_harness_deg_up"
+GOOD_DN = "./kat_harness_good_dn"
+GOOD_UP = "./kat_harness_good_up"
 VECTORS = Path("../vectors/berexp.json")
 
 TWO63 = 1 << 63
@@ -49,7 +52,8 @@ def main() -> int:
     print("falcon-sampler-kat selftest\n")
 
     print("[1] build products")
-    missing = [b for b in (REF, DEG_DOWN, DEG_UP) if not Path(b).exists()]
+    missing = [b for b in (REF, DEG_DOWN, DEG_UP, GOOD_DN, GOOD_UP)
+               if not Path(b).exists()]
     if not check(not missing, "reference and both degraded harnesses are built", ", ".join(missing)):
         print("\n    build them first -- see tools/README.md")
         return 1
@@ -109,6 +113,45 @@ def main() -> int:
         if run(coarse, "berexp", v["x"], v["ccs"], v["bytes"])["accept"] == v["reference_accepts"]:
             noflip.append(f"{p}:{v['x']}")
     check(not noflip, "all 20 flip against a coarse exp()", ", ".join(noflip[:3]))
+
+    print("\n[5b] a GOOD implementation does not flip (positive control)")
+    # THE ARM THAT PROVES THE PLACEMENT. Stages 4 and 5 show the vectors separate the reference from
+    # a 2^-33 build -- but that is equally true if a drawn value sits ONE ULP below z, in which case
+    # the set tests bit-identity with PQClean rather than the 2^-40 bar, and BOTH arms pass
+    # identically either way. The only thing that distinguishes those is an implementation
+    # comfortably INSIDE the bar, which must AGREE. Without this arm the suite is blind to that
+    # difference by construction -- the same shape as a check with no positive control.
+    ok_place, worst = True, ""
+    for pset, v in vecs:
+        z, u = int(v["z_reference"], 16), int(v["u_drawn"], 16)
+        want = z >> 40
+        if abs(abs(z - u) - want) > max(2, want // 1000):
+            ok_place, worst = False, f"{pset}:{v['x']} offset={abs(z-u)} want~{want}"
+            break
+    check(ok_place, "every drawn value sits ~z>>40 from z, not one ULP",
+          worst or "the offset IS the 2^-40 window")
+
+    drift = []
+    for pset, v in vecs:
+        ref = run(REF, "berexp", v["x"], v["ccs"], v["bytes"])["accept"]
+        for good in (GOOD_DN, GOOD_UP):
+            if run(good, "berexp", v["x"], v["ccs"], v["bytes"])["accept"] != ref:
+                drift.append(f"{pset}:{v['x']} vs {good}")
+    check(not drift, "a ~2^-45 implementation agrees with the reference on all 20",
+          ", ".join(drift[:3]) or "40/40 checks")
+
+    print("\n[5c] the README example is a real published vector")
+    # It was not, once: a hand-typed example showing u = z-1 shipped in the document people copy
+    # from, while the actual vectors were correctly placed at z>>40. A fabricated example is the
+    # exact unregenerable artifact this project keeps finding in other people's work, so it is
+    # checked here rather than trusted.
+    readme = Path("../README.md").read_text(encoding="utf-8")
+    published = {v["bytes"] for _, v in vecs}
+    quoted = set(re.findall(r'"bytes":\s*"([0-9a-fA-F]{16})"', readme))
+    check(bool(quoted) and quoted <= published,
+          "every byte stream quoted in README.md is a published vector",
+          f"not published: {sorted(quoted - published)}" if quoted - published
+          else f"{len(quoted)} quoted, all real")
 
     print("\n[6] the checking can fail (tautology guard)")
     # Everything above passing means little unless a WRONG vector would be caught. Flip a published
