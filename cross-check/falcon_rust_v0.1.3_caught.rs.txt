@@ -35,4 +35,18 @@
         }
         println!("
 {} of {} vectors detect the under-provisioned sampler", caught, vectors.len());
+
+        // ASSERT, do not merely print. Without this the test reports `ok` whatever `caught` is --
+        // including 0 -- so the arm carrying the actual historical defect could not fail. This
+        // repository argues that a check unable to go red is decoration; that has to apply to its
+        // own cross-check first. (Found by adversarial review, 2026-08-14.)
+        //
+        // 10 and not 20, and the number is the point: each x contributes one accept-direction and
+        // one reject-direction vector, an implementation errs one way at a given x, so exactly one
+        // of each pair can flip. 20 here would mean something had gone wrong.
+        assert_eq!(
+            caught, 10,
+            "expected exactly 10 of 20 vectors to catch the v0.1.3 sampler (one per parameter \
+             point, in that implementation's error direction); got {}", caught
+        );
     }

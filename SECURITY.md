@@ -26,8 +26,13 @@ Also in scope:
 
 ## How to report
 
-Use **private vulnerability reporting** on this repository — the *Security* tab → *Report a
-vulnerability*. That routes it privately to me.
+**While this repository is private, GitHub's private vulnerability reporting is not available on it.**
+That feature is public-repository only, so the *Security* tab has no *Report a vulnerability* entry —
+following the old instruction here would have led to a dead end. Email
+**conner.webber000@gmail.com** instead, with `falcon-sampler-kat` in the subject.
+
+If this repository is later made public, private vulnerability reporting will be enabled and becomes
+the preferred channel.
 
 For anything that is not a correctness problem — a question, an additional implementation you have
 cross-checked against, a request for vectors at a different precision threshold — a public issue is

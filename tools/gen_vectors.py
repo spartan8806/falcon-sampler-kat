@@ -10,18 +10,23 @@ compared MSB-first (falcon reference, sign.c). An implementation whose exp() car
 eps computes z' ~= z*(1 +/- eps). So placing u inside the window between z and z*(1 - 2^-40) makes
 the acceptance decision a direct test of whether exp() is accurate to 2^-40:
 
-    u = z - ceil(z * 2^-40)      reference (err ~2^-51) ACCEPTS; any impl that UNDER-computes
+    u = z - ceil(z * 2^-40)      reference (err <= 2^-50, per PQClean fpr.c) ACCEPTS; any impl that UNDER-computes
                                  exp by more than 2^-40 REJECTS.
-    u = z + floor(z * 2^-40)     reference REJECTS (u >= z); any impl that OVER-computes exp by
-                                 more than 2^-40 ACCEPTS.
+    u = z + ceil(z * 2^-40) - 1  reference REJECTS (u >= z); any impl that OVER-computes exp by
+                                 more than 2^-40 ACCEPTS. (Equal to z + floor(z * 2^-40) except when
+                                 z is an exact multiple of 2^40 -- an earlier version of this line
+                                 said floor, which the code below has never computed.)
 
 Both directions are published because a coarse approximation is not guaranteed to err low. A vector
 set containing only the first kind would silently pass an implementation whose error runs the other
 way -- the same one-sided-test mistake this whole finding is about.
 
-The 2^-40 figure is NOT from the Falcon specification, which stipulates no precision floor. It comes
-from Prest'17 and Howe-Prest-Ricosset-Rossi'19, whose analyses identify ~2^-40 relative precision as
-the premise the security proof needs. See README.md.
+The 2^-40 figure is the WINDOW THESE VECTORS ARE BUILT AT -- u_drawn is placed z >> 40 from
+z_reference -- and not a figure from any paper. The Falcon specification stipulates no precision
+floor. The nearest derived requirement is HPRR'19's ~2^-43 for Falcon (Prest'17 gives delta <= 2^-37
+for lambda <= 256). Neither paper contains 2^-40, and 2^-43 is STRICTER than this window, so an
+implementation between 2^-40 and 2^-43 passes these vectors while sitting under the derived
+requirement. See the precision section of README.md, which quotes both papers verbatim.
 
 Every expected value here is produced by PQClean's own sign.c/fpr.c via the harness -- never by this
 script's arithmetic. This script only chooses u and records what the reference did.
@@ -100,9 +105,17 @@ def main() -> int:
     out: dict = {
         "format": "falcon-sampler-kat.berexp.v1",
         "generated_against": "PQClean falcon-512 clean (sign.c BerExp, fpr.c fpr_expm_p63)",
-        "precision_threshold": "2^-40 relative error in exp(), per Prest'17 / HPRR'19",
+        "discrimination_window": "2^-40 relative error in exp() -- the window THESE VECTORS are "
+                                 "built at (u_drawn sits z>>40 from z_reference). Not a figure from "
+                                 "any paper.",
+        "derived_requirement": "HPRR'19 (eprint 2019/1411) sect. 5 derives ~2^-43 for Falcon; "
+                               "Prest'17 (eprint 2017/480) sect. 3.3 gives delta <= 2^-37 for "
+                               "lambda <= 256. 2^-43 is STRICTER than the window above, so an "
+                               "implementation between 2^-40 and 2^-43 passes these vectors while "
+                               "sitting under the derived requirement.",
         "note": ("The Falcon specification stipulates no precision floor. These vectors test the "
-                 "premise the security proof requires, not a spec conformance requirement."),
+                 "premise the security proof requires, not a spec conformance requirement. A pass "
+                 "means 'not catastrophically under-provisioned', NOT 'meets HPRR'19'."),
         "parameter_sets": {},
     }
 

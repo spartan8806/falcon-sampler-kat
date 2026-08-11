@@ -1,7 +1,12 @@
-# built harnesses
-kat_harness
-kat_harness_deg_down
-kat_harness_deg_up
+# Built harnesses. A PATTERN, not a list of names.
+#
+# This file used to name kat_harness, kat_harness_deg_down and kat_harness_deg_up literally. The
+# build then grew two more arms -- kat_harness_good_dn and kat_harness_good_up, the ~2^-45
+# positive controls -- and nothing covered them, so two 115KB ELF binaries were committed.
+# Build them yourself with tools/build_and_selftest.sh; this repo ships source and vectors only.
+kat_harness*
+!kat_harness.c
+
 *.o
 *.exe
 __pycache__/

@@ -7,6 +7,9 @@ The only way to answer it is to run them against a different implementation. Two
 are the two that matter: a correct one that must agree, and the *actual historical defect* that must
 be caught.
 
+**Read the first row with the caveat below it, though** — v0.3.0 turns out to share PQClean's
+polynomial, so it answers a narrower question than "an independent implementation agrees".
+
 ## Results
 
 | implementation | arithmetic | result |
@@ -15,9 +18,23 @@ be caught.
 | **falcon-rust v0.3.0** (post-fix) | `FixedPoint128` | **20/20 agree** |
 | **falcon-rust v0.1.3** (GHSA-25rm-9wvm-m38v) | `FixedPoint64`, ~2⁻³³ | **10/20 caught the defect** |
 
-Two independent codebases, different languages, different fixed-point representations, no shared
-lineage in the arithmetic — and identical accept/reject on every vector. That is the claim the KAT
-set needs to make, and it is now measured rather than argued.
+**These two are not arithmetically independent, and the distinction matters.** falcon-rust's
+`approx_exp` evaluates the *same* FACCT polynomial as PQClean's `fpr_expm_p63`: all 13 coefficients
+are byte-identical, in the same order, under the same Horner recurrence `y = C[u] - ((z*y) >> 63)`
+and the same final `((expm << 1) - 1) >> s`. Both cite the same source (ePrint 2018/1234 /
+`raykzhao/gaussian`). At all 10 points, v0.3.0 does not merely agree on accept/reject — it
+reproduces PQClean's 64-bit `z` exactly.
+
+So what this table actually establishes is narrower than "two independent implementations agree",
+and worth stating precisely: the vectors are insensitive to PQClean's `fpr` software-float
+*representation*, since a different language and a different fixed-point container reach the same
+answers. It does **not**, on its own, separate "these vectors test the precision bar" from "these
+vectors test bit-identity with PQClean". That separation is made by the positive-control arm of
+`tools/selftest.py`, which builds an implementation that is *deliberately different* from PQClean
+and comfortably inside the bar, and shows it still agrees 40/40.
+
+The v0.1.3 row above is the independent half, and it is the valuable one: a genuinely different
+arithmetic container at ~2⁻³³ is caught.
 
 ## The 10/20 is the expected number, not a shortfall
 
@@ -57,14 +74,21 @@ The two injected tests are kept here verbatim:
 
 Note that `falcon-rust`'s `ber_exp` takes **seven** bytes where PQClean's consumes up to eight. Every
 published vector's first divergence from `z` falls at byte index 4 or 5 — the offset is `z >> 40`,
-about 2²³, which perturbs the lower-middle bytes — so seven is sufficient. The generator checks this
-rather than assuming it and would refuse to emit a vector whose divergence fell outside that window.
+about 2²³, which perturbs the lower-middle bytes — so seven is sufficient.
+
+That is a **measured property of the 20 published vectors** (9 diverge at index 4, 11 at index 5),
+not something the generator enforces: `gen_vectors.py` raises on a non-zero harness exit, on
+`z == 0`, on `u >= 1<<64` and on an accept/reject mismatch, and has no byte-divergence check. An
+earlier version of this paragraph claimed it did.
 
 ## What this does not settle
 
 - Two implementations, not five. Agreement across more lineages would be worth more, and contributions
   of results from other implementations are welcome.
 - v0.1.3 is one under-provisioned implementation. Another coarse sampler could err differently and be
-  caught by a different subset — or, if its error were smaller than 2⁻⁴⁰, correctly not caught at all.
+  caught by a different subset — or, if its error were smaller than 2⁻⁴⁰, not caught here at all.
+  Note that "not caught here" is **not** the same as "adequate": HPRR'19 derives ~2⁻⁴³ for Falcon,
+  stricter than this window, so an implementation between 2⁻⁴⁰ and 2⁻⁴³ passes every vector while
+  sitting under the derived requirement. See *Honest limits* in the top-level README.
 - These runs used the vectors as published. They are not a re-derivation of the expected answers from
   `falcon-rust`; PQClean remains the source of the expected values.

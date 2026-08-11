@@ -6,7 +6,7 @@ python3 selftest.py       # exit 0 if everything holds
 ```
 
 One command decides whether this repository is trustworthy right now. It builds nothing — see
-`tools/README.md` for the three `gcc` lines first — but it checks everything else, including whether
+`tools/README.md` for the five `gcc` lines first — but it checks everything else, including whether
 the checking itself is capable of failing.
 
 ## Why there are two scripts
@@ -23,7 +23,7 @@ agreement.
 
 | stage | checks | would catch |
 |---|---|---|
-| **1** build products | all three harnesses exist, vectors file present | running the suite against a stale or missing build and reading the result as a pass |
+| **1** build products | all five harnesses exist, vectors file present | running the suite against a stale or missing build and reading the result as a pass |
 | **2** reference arithmetic | `expm(0, ccs) == ccs·2⁶³`; `expm` strictly decreasing in `r`; linear in `ccs` | an off-by-a-power-of-two in the `fpr` conversion, swapped arguments, or a `memcpy` that reads the wrong end of the double — none of which the vectors alone would reveal |
 | **3** degradation is live | down-build under-computes, up-build over-computes, relative error measures ≈2⁻³³ | the single worst failure available here: a degradation that does nothing, which makes every vector "discriminate" vacuously because both builds agree by accident |
 | **4** vectors vs reference | 20 present, 10 in each error direction, no duplicate byte streams, every published answer reproduced | a hand-edited vector, a regeneration that silently dropped one direction, copy-paste duplicates |
@@ -31,11 +31,46 @@ agreement.
 | **6** tautology guard | an inverted expected answer is rejected; a byte stream moved far outside the window does **not** discriminate | the suite passing because it cannot fail |
 
 **Stage 5b is why the two-armed version was not enough.** Reference-versus-2⁻³³ passes identically
-whether a vector discriminates at 2⁻⁴⁰ or at a single ULP — the harness is blind to the difference by
-construction. Only an implementation *inside* the bar tells them apart, by agreeing. Measured: a
-2⁻⁴⁵ build moves the computed value by ~2¹⁵ against a window of ~2²², about 155× inside, and agrees on
-40/40 checks. That also softens the "one reference lineage" limitation below, since any implementation
-within 2⁻⁴⁰ now provably agrees regardless of lineage.
+whether a vector discriminates at the bar or at a single ULP — the harness is blind to the difference
+by construction. Only an implementation *inside* the bar tells them apart, by agreeing.
+
+Measured across all 20 vectors in both directions. An earlier version of this paragraph quoted the
+single most flattering vector and called it "measured"; these are the full ranges:
+
+| quantity | measured |
+|---|---|
+| relative error the positive-control build actually reaches | **2⁻⁴³·⁸⁰** (nominal label 2⁻⁴⁵) |
+| relative error the degraded build actually reaches | **2⁻³¹·⁶⁸** (nominal label 2⁻³³) |
+| discrimination window \|z − u\| | 2²²·⁵⁷ – 2²³·⁴⁶ |
+| displacement caused by the positive control | up to 2¹⁸·⁹² |
+| margin (window ÷ displacement) | **13.9× at the tightest vector, 338.1× at the loosest** |
+| agreement of the positive control | 40/40 |
+
+The nominal labels follow the repo's `63 − DEGRADE_BITS` convention and run ~1.3 bits optimistic,
+because `fpr_expm_p63` returns `ccs·exp(−r)·2⁶³`, which measures **0.37–0.69 × 2⁶³** over these
+inputs rather than a full 2⁶³. Quote the measured column.
+
+**The two shifts are not the same number, and should not be.** 33 − 31.68 = 1.32 and
+45 − 43.80 = 1.20, so the measured figures differ by 12.12 bits rather than the 12.00 the nominal
+labels differ by. That is expected, not an inconsistency: clearing *n* low bits removes whatever
+those bits happened to be, not exactly 2ⁿ — measured, the removed amount ranges 0.11–1.89 × 2ⁿ
+across the set — and the worst case is attained at a *different vector* for each build
+(Falcon-512 x=0.65 for the positive control, Falcon-1024 x=0.65 for the degraded one). A gap of
+exactly 12.00 would be the surprising result, since it would require the errors to be exactly 2ⁿ at
+the same vector.
+
+(That range is the function's *own* output. An earlier version of this sentence gave 0.74–1.37,
+which is the range of `z` — the BerExp comparison value, exactly 2× larger — and it was impossible
+against the table directly above it: a 0.74 floor caps a 30-bit clearing at 2⁻³²·⁵⁷, while the table
+measures 2⁻³¹·⁶⁸. The 0.37 floor gives 2⁻³¹·⁵⁷, which the measurement sits just inside. It is also
+ruled out on the domain alone: `ccs < 1` and `exp(−r) ≤ 1`, so the function cannot reach 1.37 × 2⁶³
+on any legal input — see the `ccs < 1` trap below.)
+
+Note what this does **not** establish. It does not show the vectors discriminate exactly at some
+particular bar. It shows that a build reaching 2⁻⁴³·⁸ — just inside HPRR'19's derived 2⁻⁴³ figure for
+Falcon, see the precision note in the README — still agrees on every vector, while one at 2⁻³¹·⁷ does
+not. It also softens the "one reference lineage" limitation below: an implementation that agrees here
+is doing more than bit-matching PQClean.
 
 Stage 6 is the one worth arguing about. Stages 1–5 all passing means little on its own: a check that
 cannot fail proves nothing about what it claims to check. So the last stage inverts a published answer
@@ -67,8 +102,11 @@ instead of the test, and the vectors inherit it silently.
 - **The `sampler_z` portability claim.** The `z = 101` measurement in `README.md` is a fact about
   PQClean and a report of falcon-rust's published values; it is not re-verified here against
   falcon-rust directly.
-- **Whether 2⁻⁴⁰ is the right threshold.** That comes from Prest'17 and HPRR'19, not from anything in
-  this repository. The vectors test against that number; they do not justify it.
+- **Whether 2⁻⁴⁰ is the right threshold.** It is the window these vectors are *built at*, not a
+  figure from either paper — HPRR'19 derives ~2⁻⁴³ for Falcon and Prest'17 gives δ ≤ 2⁻³⁷ for
+  λ ≤ 256. Since 2⁻⁴³ is stricter, an implementation between 2⁻⁴⁰ and 2⁻⁴³ passes here while sitting
+  under the derived requirement. The vectors test against 2⁻⁴⁰; they do not justify it, and they do
+  not reach 2⁻⁴³. See the precision section of `README.md`.
 
 ## Regenerating
 

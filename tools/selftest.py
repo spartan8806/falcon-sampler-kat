@@ -54,7 +54,7 @@ def main() -> int:
     print("[1] build products")
     missing = [b for b in (REF, DEG_DOWN, DEG_UP, GOOD_DN, GOOD_UP)
                if not Path(b).exists()]
-    if not check(not missing, "reference and both degraded harnesses are built", ", ".join(missing)):
+    if not check(not missing, "all five harnesses are built", ", ".join(missing)):
         print("\n    build them first -- see tools/README.md")
         return 1
     check(VECTORS.exists(), "vectors/berexp.json is present")
