@@ -116,6 +116,10 @@ Requested by [@aszepieniec](https://github.com/aszepieniec) in the `falcon-rust`
 asked for something universal rather than repo-specific, and who supplied the spec-versus-refinement
 correction that frames this document.
 
+**He has not reviewed these vectors.** His involvement is that request and that correction, nothing
+further, and nothing here should be read as his endorsement of the result. Any error in the vectors,
+or in the reasoning around them, is mine.
+
 Analysis and vector construction: Conner Webber, with AI assistance (Anthropic Claude/Opus). Every
 quantitative claim here is produced by a program in `tools/` that compiles and runs against PQClean's
 reference implementation, and is reproducible from this repository.
