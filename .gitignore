@@ -1,0 +1,7 @@
+# built harnesses
+kat_harness
+kat_harness_deg_down
+kat_harness_deg_up
+*.o
+*.exe
+__pycache__/
