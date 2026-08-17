@@ -60,15 +60,26 @@ strict IEEE-754 `binary64` emulation in integer arithmetic, so it is *supposed* 
 hardware `f64`. It is a different substrate, not a different computation.
 
 **What that means for these vectors, stated plainly.** They measure whether an implementation
-evaluates the agreed polynomial *precisely enough*. They cannot detect a **wrong** polynomial,
-because there is no second polynomial in the ecosystem to disagree with. If ePrint 2018/1234's
-coefficients were themselves subtly wrong, every implementation here — and every vector in this
-repository — would be wrong together and consistent about it.
+evaluates the agreed polynomial *precisely enough*. They cannot detect a **wrong** polynomial: no
+implementation checked here uses a different one, so none of them would disagree. If ePrint
+2018/1234's coefficients were themselves subtly wrong, every implementation in the table above — and
+every vector in this repository — would be wrong together and consistent about it.
 
-That is not a limitation of which implementations were chosen. It is a property of the ecosystem, and
-it is the reason the earlier framing of "find a second independent lineage" was the wrong next step:
-as far as this survey goes, there isn't one. The defect class these vectors target — a shared
-polynomial evaluated at inadequate precision — is exactly the class that GHSA-25rm-9wvm-m38v was.
+**Scope, because this is easy to overstate and the overstatement is tempting.** Three
+implementations is not a survey of the ecosystem. The claim here is exactly: *among PQClean,
+falcon-rust and pornin/rust-fn-dsa, the coefficients are byte-identical and all three cite the same
+upstream.* Whether some other implementation derives its own approximation is **not established** —
+it was not looked for beyond these three, and a reader should assume nothing further.
+
+Note also a distinction worth keeping separate: `pornin/rust-fn-dsa` **is** an independent
+*implementation* — separately written, different structure, its own integer backend. What it is not
+is an independent *coefficient* lineage. A codebase can be one without being the other, and the
+earlier framing of "find a second independent lineage" ran the two together. The thing these vectors
+would need in order to check the polynomial itself is the second kind, and that is what was not
+found here.
+
+The defect class these vectors target — a shared polynomial evaluated at inadequate precision — is
+exactly the class GHSA-25rm-9wvm-m38v was.
 
 ## The 10/20 is the expected number, not a shortfall
 
