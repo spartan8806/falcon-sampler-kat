@@ -41,8 +41,9 @@ arithmetic container at ~2⁻³³ is caught.
 ## Every implementation checked evaluates the *same* polynomial
 
 `pornin/rust-fn-dsa` was added specifically to answer "is there a second lineage?", since it is an
-independently written codebase rather than a port. The answer is no, and it is worth stating as a
-finding rather than a caveat.
+independently written codebase rather than a port. It is an independent **implementation** — and it
+is not an independent set of **coefficients**, which is the kind that would have answered the
+question. That is worth stating as a finding rather than a caveat.
 
 Its `EXPM_COEFFS` are **byte-identical** to PQClean's `fpr_expm_p63` coefficients — all 13, same
 order — and it cites the same source (ePrint 2018/1234, `raykzhao/gaussian`). So do falcon-rust's.
