@@ -1,0 +1,62 @@
+// Harness injected into pornin/rust-fn-dsa v0.4.0 at fn-dsa-sign/src/flr.rs (append to file).
+// See cross-check/README.md -> "Reproducing the Pornin rows" for the two cargo invocations.
+// Result: 20/20 accept/reject agreement AND 20/20 exact z match, on BOTH backends.
+
+#[cfg(test)]
+mod berexp_kat_test {
+    extern crate std;
+    use std::println;
+
+    use super::backend::FLR;
+
+    // Exact f64 -> FLR. v = mant * 2^(exp-1075) for a normal double.
+    fn flr(v: f64) -> FLR {
+        let bits = v.to_bits();
+        let neg = (bits >> 63) != 0;
+        let exp = ((bits >> 52) & 0x7ff) as i32;
+        assert!(exp != 0 && exp != 0x7ff, "not a normal double");
+        let mant = ((bits & ((1u64 << 52) - 1)) | (1u64 << 52)) as i64;
+        FLR::scaled(if neg { -mant } else { mant }, exp - 1075)
+    }
+
+    // (set, x, r, ccs, s, u_drawn, z_reference, reference_accepts)
+    const KATS: [(&str, &str, f64, f64, u32, u64, u64, bool); 20] = [
+        ("Falcon-512", "0.05", 0.05, 0.7099076094444444, 0, 0xacdf7a6b994c3e32u64, 0xacdf7a6b99f91dadu64, true),
+        ("Falcon-512", "0.05", 0.05, 0.7099076094444444, 0, 0xacdf7a6b9aa5fd27u64, 0xacdf7a6b99f91dadu64, false),
+        ("Falcon-512", "0.2000001676183812", 0.2000001676183812, 0.7099076094444444, 0, 0x94cb0965940ab9bfu64, 0x94cb0965949f84c9u64, true),
+        ("Falcon-512", "0.2000001676183812", 0.2000001676183812, 0.7099076094444444, 0, 0x94cb096595344fd2u64, 0x94cb0965949f84c9u64, false),
+        ("Falcon-512", "0.35", 0.35, 0.7099076094444444, 0, 0x801143be0de70f51u64, 0x801143be0e672095u64, true),
+        ("Falcon-512", "0.35", 0.35, 0.7099076094444444, 0, 0x801143be0ee731d8u64, 0x801143be0e672095u64, false),
+        ("Falcon-512", "0.5", 0.5, 0.7099076094444444, 0, 0x6e3a89ec9b00cf55u64, 0x6e3a89ec9b6f09dfu64, true),
+        ("Falcon-512", "0.5", 0.5, 0.7099076094444444, 0, 0x6e3a89ec9bdd4468u64, 0x6e3a89ec9b6f09dfu64, false),
+        ("Falcon-512", "0.65", 0.65, 0.7099076094444444, 0, 0x5edfebe0d56fefa7u64, 0x5edfebe0d5cecf93u64, true),
+        ("Falcon-512", "0.65", 0.65, 0.7099076094444444, 0, 0x5edfebe0d62daf7eu64, 0x5edfebe0d5cecf93u64, false),
+        ("Falcon-1024", "0.05", 0.05, 0.7212668522222222, 0, 0xafa39c5daa93fae8u64, 0xafa39c5dab439e85u64, true),
+        ("Falcon-1024", "0.05", 0.05, 0.7212668522222222, 0, 0xafa39c5dabf34221u64, 0xafa39c5dab439e85u64, false),
+        ("Falcon-1024", "0.2000001676183812", 0.2000001676183812, 0.7212668522222222, 0, 0x972c882feac145eau64, 0x972c882feb587273u64, true),
+        ("Falcon-1024", "0.2000001676183812", 0.2000001676183812, 0.7212668522222222, 0, 0x972c882febef9efbu64, 0x972c882feb587273u64, false),
+        ("Falcon-1024", "0.35", 0.35, 0.7212668522222222, 0, 0x821ddcb5f49207eeu64, 0x821ddcb5f51425cbu64, true),
+        ("Falcon-1024", "0.35", 0.35, 0.7212668522222222, 0, 0x821ddcb5f59643a7u64, 0x821ddcb5f51425cbu64, false),
+        ("Falcon-1024", "0.5", 0.5, 0.7212668522222222, 0, 0x6ffe10656823c4e6u64, 0x6ffe10656893c2f7u64, true),
+        ("Falcon-1024", "0.5", 0.5, 0.7212668522222222, 0, 0x6ffe10656903c107u64, 0x6ffe10656893c2f7u64, false),
+        ("Falcon-1024", "0.65", 0.65, 0.7212668522222222, 0, 0x60648d84f794586bu64, 0x60648d84f7f4bcf9u64, true),
+        ("Falcon-1024", "0.65", 0.65, 0.7212668522222222, 0, 0x60648d84f8552186u64, 0x60648d84f7f4bcf9u64, false),
+    ];
+
+    #[test]
+    fn falcon_sampler_kat_berexp() {
+        let mut agree = 0;
+        let mut zmatch = 0;
+        for (set, x, r, ccs, s, u, zref, acc) in KATS {
+            let z = ((flr(r).expm_p63(flr(ccs)) << 1).wrapping_sub(1)) >> s;
+            let got = u < z;
+            if got == acc { agree += 1; } else {
+                println!("DISAGREE {set} x={x}: got {got} want {acc} z={z:#018x} zref={zref:#018x}");
+            }
+            if z == zref { zmatch += 1; }
+        }
+        println!("RESULT accept_reject_agreement {agree}/20");
+        println!("RESULT exact_z_match_vs_pqclean {zmatch}/20");
+        assert_eq!(agree, 20, "accept/reject disagreement");
+    }
+}

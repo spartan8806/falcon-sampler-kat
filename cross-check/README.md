@@ -17,6 +17,8 @@ polynomial, so it answers a narrower question than "an independent implementatio
 | PQClean falcon-512 `clean` | `uint64_t` software float (`fpr`) | source of the expected answers |
 | **falcon-rust v0.3.0** (post-fix) | `FixedPoint128` | **20/20 agree** |
 | **falcon-rust v0.1.3** (GHSA-25rm-9wvm-m38v) | `FixedPoint64`, ~2⁻³³ | **10/20 caught the defect** |
+| **pornin/rust-fn-dsa v0.4.0** | `flr_native` — hardware `f64` | **20/20 agree**, `z` bit-exact |
+| **pornin/rust-fn-dsa v0.4.0** | `flr_emu` — integer IEEE-754 emulation | **20/20 agree**, `z` bit-exact |
 
 **These two are not arithmetically independent, and the distinction matters.** falcon-rust's
 `approx_exp` evaluates the *same* FACCT polynomial as PQClean's `fpr_expm_p63`: all 13 coefficients
@@ -35,6 +37,38 @@ and comfortably inside the bar, and shows it still agrees 40/40.
 
 The v0.1.3 row above is the independent half, and it is the valuable one: a genuinely different
 arithmetic container at ~2⁻³³ is caught.
+
+## Every implementation checked evaluates the *same* polynomial
+
+`pornin/rust-fn-dsa` was added specifically to answer "is there a second lineage?", since it is an
+independently written codebase rather than a port. The answer is no, and it is worth stating as a
+finding rather than a caveat.
+
+Its `EXPM_COEFFS` are **byte-identical** to PQClean's `fpr_expm_p63` coefficients — all 13, same
+order — and it cites the same source (ePrint 2018/1234, `raykzhao/gaussian`). So do falcon-rust's.
+Three separately written codebases, one polynomial:
+
+```
+4741183a3  36548cfc06  24fdcbf140a  171d939de045  d00cf58f6f84  680681cf796e3
+2d82d8305b0fea  11111110e066fd0  555555555070f00  155555555581ff00
+400000000002b400  7fffffffffff4800  8000000000000000
+```
+
+Both Pornin backends reproduce PQClean's 64-bit `z` **exactly** on all 20 vectors, not merely the
+accept/reject answer. For `flr_emu` that is by construction and not evidence of independence: it is a
+strict IEEE-754 `binary64` emulation in integer arithmetic, so it is *supposed* to be bit-exact with
+hardware `f64`. It is a different substrate, not a different computation.
+
+**What that means for these vectors, stated plainly.** They measure whether an implementation
+evaluates the agreed polynomial *precisely enough*. They cannot detect a **wrong** polynomial,
+because there is no second polynomial in the ecosystem to disagree with. If ePrint 2018/1234's
+coefficients were themselves subtly wrong, every implementation here — and every vector in this
+repository — would be wrong together and consistent about it.
+
+That is not a limitation of which implementations were chosen. It is a property of the ecosystem, and
+it is the reason the earlier framing of "find a second independent lineage" was the wrong next step:
+as far as this survey goes, there isn't one. The defect class these vectors target — a shared
+polynomial evaluated at inadequate precision — is exactly the class that GHSA-25rm-9wvm-m38v was.
 
 ## The 10/20 is the expected number, not a shortfall
 
@@ -81,10 +115,27 @@ not something the generator enforces: `gen_vectors.py` raises on a non-zero harn
 `z == 0`, on `u >= 1<<64` and on an accept/reject mismatch, and has no byte-divergence check. An
 earlier version of this paragraph claimed it did.
 
+## Reproducing the Pornin rows
+
+`expm_p63` is `pub(crate)`, so the harness lives inside the crate, same as the falcon-rust case. On
+x86_64 the native backend is selected by `cfg`; the emulated one is reached by pointing `mod backend`
+at `flr_emu.rs` and building with `--features no_avx2`, since the AVX2 sampler path assumes the
+native backend's `to_f64`.
+
+```sh
+cargo test --offline -p fn-dsa-sign falcon_sampler_kat -- --nocapture                    # native
+cargo test --offline -p fn-dsa-sign --features no_avx2 falcon_sampler_kat -- --nocapture # emu
+```
+
+The harness computes `z = ((expm_p63(r, ccs) << 1) - 1) >> s` from each vector's published `r`, `ccs`
+and `s`, then compares `u_drawn < z` against `reference_accepts` — the "at the comparison value"
+route described in the top-level README, which needs no RNG plumbing.
+
 ## What this does not settle
 
-- Two implementations, not five. Agreement across more lineages would be worth more, and contributions
-  of results from other implementations are welcome.
+- Three codebases, one polynomial. More implementations would add substrates, not independence — see
+  the section above. Contributions of results are still welcome, and a genuinely independent
+  polynomial evaluation would be worth more than all of these combined.
 - v0.1.3 is one under-provisioned implementation. Another coarse sampler could err differently and be
   caught by a different subset — or, if its error were smaller than 2⁻⁴⁰, not caught here at all.
   Note that "not caught here" is **not** the same as "adequate": HPRR'19 derives ~2⁻⁴³ for Falcon,

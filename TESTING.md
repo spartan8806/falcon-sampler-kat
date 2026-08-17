@@ -98,8 +98,11 @@ instead of the test, and the vectors inherit it silently.
 
 ## What this does not cover
 
-- **Other implementations.** Everything is checked against PQClean falcon-512 `clean`. A second
-  independent lineage agreeing would be worth more than any check here, and is the obvious next step.
+- **Other implementations.** Everything is checked against PQClean falcon-512 `clean`. An earlier
+  version of this line called "a second independent lineage agreeing" the obvious next step. That was
+  checked and the step does not exist: falcon-rust and `pornin/rust-fn-dsa` are separately written
+  codebases whose `exp` coefficients are **byte-identical** to PQClean's, all citing ePrint 2018/1234.
+  Additional implementations add substrates, not independence. See `cross-check/README.md`.
 - **Realistic coarse arithmetic.** "Coarse" is simulated by clearing or rounding up the low bits of
   the reference result, which isolates precision as the only variable. A real under-provisioned
   polynomial differs in other ways and may err in different directions at different `x`. The vectors
