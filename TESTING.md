@@ -1,5 +1,10 @@
 # Testing
 
+**Testing your own implementation?** This file is not it. This is about whether *this repository* is
+trustworthy — how the vectors are generated, and how that generation is checked. For wiring
+`berexp.json` into your project's test suite, see **Wiring them into your own test suite** in
+`README.md`.
+
 ```sh
 cd tools
 python3 selftest.py       # exit 0 if everything holds

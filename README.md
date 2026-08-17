@@ -143,6 +143,76 @@ ten trip one that over-computes. This is not hypothetical caution: the real defe
 v0.1.3 errs *over* at `x = 0.05` and *under* at `x = 0.35`, in the same build. A set containing only
 one kind would have missed half of them — the same one-sided-test mistake this whole finding is about.
 
+## Wiring them into your own test suite
+
+The section above says what a vector *means*. This one says what to actually write. `TESTING.md` is
+about **this** repository's integrity — regenerating the vectors and checking they still
+discriminate — and is not what you want if you are here to test your own sampler.
+
+The file is one JSON object; the vectors live two levels down, under the parameter set:
+
+```
+berexp.json
+└── parameter_sets
+    ├── Falcon-512      → sigma_min, ccs_used, vectors[10]
+    └── Falcon-1024     → sigma_min, ccs_used, vectors[10]
+```
+
+`x` and `ccs` are strings, deliberately — they are exact decimal values and must not pick up a
+round-trip through a JSON parser's float. Parse them yourself, at whatever precision your
+implementation uses.
+
+### Two ways in, depending on what your code exposes
+
+**(a) At the comparison value — preferred if you can reach it.** If your implementation has an
+`approx_exp` / `expm` you can call directly, compute `z` and compare against `u_drawn` yourself:
+
+```
+z = your_expm(r, ccs)          # r and s derived from x as in BerExp
+accepts = u_drawn < z
+assert accepts == vector.reference_accepts
+```
+
+This needs no RNG plumbing and is the most portable option.
+
+Do **not** assert `z == z_reference`. That is bit-identity with PQClean, which is a stricter and
+different question — an implementation can be comfortably inside 2⁻⁴⁰ and still produce a different
+`z`. Testing the accept/reject answer is the point; testing the exact integer is over-testing.
+
+**(b) Black-box through `BerExp`.** If the sampler only exposes the Bernoulli step, feed the byte
+stream through a stub RNG that returns `bytes` in order, MSB-first, and compare the boolean:
+
+```
+rng    = FixedBytes(vector.bytes)
+result = your_ber_exp(x, ccs, rng)
+assert result == vector.reference_accepts
+```
+
+**Your `BerExp` may consume fewer than 8 bytes, and that is fine.** The comparison walks the byte
+stream most-significant first and stops at the first byte that differs from `z`. Across all 20
+published vectors that happens at **byte index 4 or 5**, so an implementation taking a 7-byte buffer
+(falcon-rust) or one drawing lazily still reaches the same decision. Truncate rather than pad, and
+say in a comment why the tail is unused — a dropped byte otherwise looks like a mistake to the next
+reader.
+
+### Reading a failure
+
+A red test here is **a measurement, not a verdict**. Before filing anything against your own code:
+
+- **It is not a spec violation.** The Falcon specification stipulates no minimum precision. 2⁻⁴⁰
+  comes from the security analyses, so falling below it invalidates a proof's precondition rather
+  than breaking conformance. See the precision section above — that distinction is the maintainer's
+  correction and it is the thing most likely to be reported wrongly.
+- **Read `flips_if` on the failing vector.** It names the direction. A build can err *over* at one
+  `x` and *under* at another — falcon-rust v0.1.3 did exactly that — so the direction of the first
+  failure does not characterise the implementation.
+- **A pass is not a clean bill either.** These test one arithmetic step at ten points per parameter
+  set, against a 2⁻⁴⁰ window, from one reference lineage. `Honest limits` below is the real list, and
+  it is worth reading before quoting a green result anywhere.
+
+If a vector looks wrong rather than your code, please open an issue — that is worth more to everyone
+than a quiet local fix.
+
 ## Why these are `BerExp` vectors and not full `sampler_z` vectors
 
 A full `sampler_z` vector — `(σ_min, μ, σ, bytes) → z` — **is not portable between implementations**,
